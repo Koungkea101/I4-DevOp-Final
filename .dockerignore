@@ -1,0 +1,25 @@
+# Ignore Docker-related files
+Dockerfile
+docker-compose.yml
+# Keep apache.conf for container configuration
+!docker/apache.conf
+
+# Ignore development files
+.env.local
+.env.testing
+
+# Ignore build artifacts
+node_modules/
+vendor/
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+bootstrap/cache/*
+
+# Keep important directories
+!storage/logs/.gitkeep
+!storage/framework/cache/.gitkeep
+!storage/framework/sessions/.gitkeep
+!storage/framework/views/.gitkeep
+!bootstrap/cache/.gitkeep
