@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: laravel-env-config
+  namespace: laravel-app
+data:
+  APP_NAME: "Laravel"
+  APP_ENV: "production"
+  APP_DEBUG: "false"
+  APP_URL: "http://localhost:8080"
+  APP_LOCALE: "en"
+  APP_FALLBACK_LOCALE: "en"
+  APP_FAKER_LOCALE: "en_US"
+  LOG_CHANNEL: "stack"
+  LOG_STACK: "single"
+  LOG_LEVEL: "info"
+  DB_CONNECTION: "mysql"
+  DB_HOST: "127.0.0.1"
+  DB_PORT: "3306"
+  DB_DATABASE: "koungkea-db"
+  DB_USERNAME: "root"
+  SESSION_DRIVER: "database"
+  SESSION_LIFETIME: "120"
+  CACHE_STORE: "database"
+  QUEUE_CONNECTION: "database"
+  MAIL_MAILER: "log"
+  VITE_APP_NAME: "Laravel"

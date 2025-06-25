@@ -17,7 +17,7 @@ class BookingFactory extends Factory
     public function definition(): array
     {
         $startDate = $this->faker->dateTimeBetween('-6 months', '+6 months');
-        $endDate = $this->faker->dateTimeBetween($startDate, $startDate->format('Y-m-d') . ' +30 days');
+        $endDate = $this->faker->dateTimeBetween($startDate, $startDate->format('Y-m-d').' +30 days');
 
         return [
             'terrain_id' => \App\Models\Terrain::factory(),
