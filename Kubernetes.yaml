@@ -128,7 +128,7 @@ spec:
         #     port: 8080
         #   initialDelaySeconds: 5
         #   periodSeconds: 5
-      
+
       # MySQL database container
       - name: mysql-database
         image: mysql:8.0
@@ -178,7 +178,7 @@ spec:
             - localhost
           initialDelaySeconds: 5
           periodSeconds: 5
-      
+
       volumes:
       - name: laravel-storage
         emptyDir: {}
@@ -187,7 +187,7 @@ spec:
       - name: mysql-data
         persistentVolumeClaim:
           claimName: mysql-pvc
-      
+
       restartPolicy: Always
 ---
 apiVersion: v1

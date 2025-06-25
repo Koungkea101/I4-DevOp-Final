@@ -1,0 +1,147 @@
+---
+- name: Simple Laravel Deployment - 4 Essential Tasks
+  hosts: laravel-pod
+  remote_user: root
+  gather_facts: yes
+  vars:
+    app_path: /var/www/html
+    mysql_host: 127.0.0.1
+    mysql_port: 3306
+    mysql_database: koungkea-db
+    mysql_user: root
+    mysql_password: "Hello@123"
+    backup_dir: /tmp/mysql-backup
+
+  tasks:
+    # TASK 1: Git Pull (handle local changes)
+    - name: Check for local git changes
+      command: git status --porcelain
+      args:
+        chdir: "{{ app_path }}"
+      register: git_status
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Stash local changes if any exist
+      command: git stash
+      args:
+        chdir: "{{ app_path }}"
+      when: git_status.rc == 0 and git_status.stdout | length > 0
+      ignore_errors: yes
+
+    - name: Display git status
+      debug:
+        msg: "Git repository {{ 'found' if git_status.rc == 0 else 'NOT found' }} - {{ 'changes stashed' if git_status.rc == 0 and git_status.stdout | length > 0 else 'no changes to stash' }}"
+
+    - name: Initialize git repository if not exists
+      shell: |
+        cd {{ app_path }}
+        if [ ! -d .git ]; then
+          git init
+          git remote add origin https://github.com/Koungkea101/I4-DevOp-Final.git || true
+        fi
+      when: git_status.rc != 0
+      ignore_errors: yes
+
+    - name: Pull latest code from git
+      git:
+        repo: https://github.com/Koungkea101/I4-DevOp-Final.git
+        dest: "{{ app_path }}"
+        update: yes
+        force: yes
+      register: git_pull_result
+      ignore_errors: yes
+
+    - name: Display git pull results
+      debug:
+        msg: "✅ Git pull {{ 'SUCCESS' if git_pull_result.changed else 'NO CHANGES' }} {{ '(FAILED)' if git_pull_result.failed else '' }}"
+
+    # TASK 2: Build Composer and NPM Dependencies
+    - name: Install Composer dependencies
+      composer:
+        command: install
+        working_dir: "{{ app_path }}"
+        no_dev: false
+        optimize_autoloader: yes
+      register: composer_result
+
+    - name: Display Composer results
+      debug:
+        msg: "✅ Composer dependencies installed successfully"
+
+    - name: Check if package.json exists
+      stat:
+        path: "{{ app_path }}/package.json"
+      register: package_json_check
+
+    - name: Install NPM dependencies
+      shell: npm install
+      args:
+        chdir: "{{ app_path }}"
+      when: package_json_check.stat.exists
+      register: npm_install_result
+
+    - name: Build NPM assets
+      shell: npm run build
+      args:
+        chdir: "{{ app_path }}"
+      when: package_json_check.stat.exists
+      register: npm_build_result
+      ignore_errors: yes
+
+    - name: Display NPM build results
+      debug:
+        msg: "✅ NPM {{ 'install and build completed successfully' if package_json_check.stat.exists and npm_build_result.rc == 0 else 'build failed or no package.json found' }}"
+
+    # TASK 3: Run Tests with SQLite
+    - name: Clear Laravel cache before testing
+      shell: |
+        php artisan cache:clear || true
+        php artisan config:clear || true
+      args:
+        chdir: "{{ app_path }}"
+
+    - name: Run Laravel tests with SQLite
+      command: php artisan test
+      args:
+        chdir: "{{ app_path }}"
+      environment:
+        APP_ENV: testing
+        DB_CONNECTION: sqlite
+        DB_DATABASE: ":memory:"
+      register: test_result
+      ignore_errors: yes
+
+    - name: Display test results
+      debug:
+        msg: "✅ Tests {{ 'PASSED' if test_result.rc == 0 else 'FAILED' }} (Return code: {{ test_result.rc }})"
+
+    # TASK 4: Backup MySQL Database
+    - name: Create backup directory
+      file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Test MySQL connection
+      shell: mysqladmin ping -h {{ mysql_host }} -P {{ mysql_port }} -u {{ mysql_user }} -p{{ mysql_password }}
+      register: mysql_ping
+      ignore_errors: yes
+
+    - name: Backup MySQL database using mysqldump
+      shell: |
+        mysqldump -h {{ mysql_host }} -P {{ mysql_port }} -u {{ mysql_user }} -p{{ mysql_password }} \
+          --single-transaction --routines --triggers {{ mysql_database }} > \
+          {{ backup_dir }}/{{ mysql_database }}_backup.sql
+      register: backup_result
+      when: mysql_ping.rc == 0
+
+    - name: Verify backup file
+      stat:
+        path: "{{ backup_dir }}/{{ mysql_database }}_backup.sql"
+      register: backup_file
+      when: mysql_ping.rc == 0
+
+    - name: Display backup results
+      debug:
+        msg: "✅ Database backup {{ 'SUCCESS' if backup_file is defined and backup_file.stat.exists else 'FAILED - MySQL not accessible' }}"
