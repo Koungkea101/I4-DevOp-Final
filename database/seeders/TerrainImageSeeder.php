@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\Terrain;
 use App\Models\TerrainImage;
 use Illuminate\Database\Seeder;
-use App\Models\Terrain;
 
 class TerrainImageSeeder extends Seeder
 {
