@@ -1,0 +1,216 @@
+---
+- name: Laravel Container Deployment and Testing
+  hosts: laravel-pod
+  remote_user: root
+  gather_facts: yes
+  vars:
+    app_path: /var/www/html
+    mysql_host: 127.0.0.1
+    mysql_port: 3306
+    mysql_database: koungkea-db
+    mysql_user: root
+    mysql_password: "Hello@123"
+    backup_dir: /tmp/mysql-backup
+    timestamp: "{{ ansible_date_time.epoch }}"
+
+  tasks:
+    - name: Display connection information
+      debug:
+        msg: "Connected to Laravel web server pod: {{ inventory_hostname }}"
+
+    - name: Check if we're in the correct directory
+      stat:
+        path: "{{ app_path }}/artisan"
+      register: artisan_file
+
+    - name: Fail if not in Laravel directory
+      fail:
+        msg: "Laravel artisan file not found in {{ app_path }}"
+      when: not artisan_file.stat.exists
+
+    - name: Check if this is a git repository
+      stat:
+        path: "{{ app_path }}/.git"
+      register: git_dir
+
+    - name: Initialize git repository if not exists
+      shell: |
+        cd {{ app_path }}
+        if [ ! -d .git ]; then
+          git init
+          git remote add origin https://github.com/your-repo/laravel-project.git || true
+        fi
+      when: not git_dir.stat.exists
+
+    - name: Configure git user (required for operations)
+      shell: |
+        cd {{ app_path }}
+        git config user.email "ansible@deployment.local" || true
+        git config user.name "Ansible Deployment" || true
+
+    - name: Check for local git changes
+      shell: |
+        cd {{ app_path }}
+        git status --porcelain 2>/dev/null || echo "no-git"
+      register: git_status
+      changed_when: false
+
+    - name: Stash local changes if any exist
+      shell: |
+        cd {{ app_path }}
+        if [ "{{ git_status.stdout | length }}" -gt 0 ] && [ "{{ git_status.stdout }}" != "no-git" ]; then
+          git stash push -m "Auto-stash before deployment {{ timestamp }}"
+          echo "Changes stashed"
+        else
+          echo "No changes to stash"
+        fi
+      register: git_stash_result
+
+    - name: Display stash information
+      debug:
+        msg: "{{ git_stash_result.stdout }}"
+
+    # Skip git pull in container environment, focus on building and testing
+    - name: Install/Update Composer dependencies
+      shell: |
+        cd {{ app_path }}
+        composer install --no-interaction --prefer-dist --optimize-autoloader
+      register: composer_result
+
+    - name: Display composer results
+      debug:
+        msg: "Composer install completed: {{ composer_result.stdout }}"
+
+    - name: Check if package.json exists
+      stat:
+        path: "{{ app_path }}/package.json"
+      register: package_json
+
+    - name: Install npm dependencies
+      shell: |
+        cd {{ app_path }}
+        npm install
+      when: package_json.stat.exists
+      register: npm_install_result
+
+    - name: Build npm assets
+      shell: |
+        cd {{ app_path }}
+        npm run build
+      when: package_json.stat.exists
+      register: npm_build_result
+
+    - name: Display npm build results
+      debug:
+        msg: "NPM build completed: {{ npm_build_result.stdout | default('Skipped - no package.json') }}"
+
+    - name: Clear Laravel caches before testing
+      shell: |
+        cd {{ app_path }}
+        php artisan config:clear || true
+        php artisan cache:clear || true
+        php artisan view:clear || true
+        php artisan route:clear || true
+
+    - name: Ensure SQLite PHP extension is available
+      shell: php -m | grep -i sqlite
+      register: sqlite_check
+      failed_when: false
+
+    - name: Display SQLite status
+      debug:
+        msg: "SQLite extension status: {{ 'Available' if sqlite_check.rc == 0 else 'Not available' }}"
+
+    - name: Run Laravel tests with SQLite (using PHPUnit directly)
+      shell: |
+        cd {{ app_path }}
+        # Use phpunit.xml configuration which already has SQLite settings
+        ./vendor/bin/phpunit --testdox
+      register: test_result
+      environment:
+        APP_ENV: testing
+
+    - name: Display test results
+      debug:
+        msg: |
+          Test execution completed.
+          Return code: {{ test_result.rc }}
+          Output: {{ test_result.stdout }}
+          {% if test_result.stderr %}
+          Errors: {{ test_result.stderr }}
+          {% endif %}
+
+    - name: Continue despite test failures (for demo purposes)
+      debug:
+        msg: "Tests {{ 'PASSED' if test_result.rc == 0 else 'FAILED' }} - continuing with deployment"
+
+    - name: Create backup directory
+      file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check MySQL connection
+      shell: mysqladmin ping -h {{ mysql_host }} -P {{ mysql_port }} -u {{ mysql_user }} -p{{ mysql_password }}
+      register: mysql_ping
+      failed_when: mysql_ping.rc != 0
+
+    - name: Create MySQL database backup using mysqldump
+      shell: |
+        mysqldump -h {{ mysql_host }} -P {{ mysql_port }} -u {{ mysql_user }} -p{{ mysql_password }} \
+          --single-transaction --routines --triggers {{ mysql_database }} > \
+          {{ backup_dir }}/{{ mysql_database }}_backup_{{ timestamp }}.sql
+      register: backup_result
+
+    - name: Verify backup file was created
+      stat:
+        path: "{{ backup_dir }}/{{ mysql_database }}_backup_{{ timestamp }}.sql"
+      register: backup_file
+
+    - name: Display backup information
+      debug:
+        msg: |
+          Database backup completed successfully.
+          Backup file: {{ backup_dir }}/{{ mysql_database }}_backup_{{ timestamp }}.sql
+          File exists: {{ backup_file.stat.exists }}
+          File size: {{ (backup_file.stat.size / 1024 / 1024) | round(2) }} MB
+
+    - name: Run Laravel migrations to ensure database is up to date
+      shell: |
+        cd {{ app_path }}
+        php artisan migrate --force
+      environment:
+        DB_CONNECTION: mysql
+        DB_HOST: "{{ mysql_host }}"
+        DB_PORT: "{{ mysql_port }}"
+        DB_DATABASE: "{{ mysql_database }}"
+        DB_USERNAME: "{{ mysql_user }}"
+        DB_PASSWORD: "{{ mysql_password }}"
+      register: migrate_result
+
+    - name: Display migration results
+      debug:
+        msg: "Migration completed: {{ migrate_result.stdout }}"
+
+    - name: Optimize Laravel for production
+      shell: |
+        cd {{ app_path }}
+        php artisan config:cache || true
+        php artisan route:cache || true
+        php artisan view:cache || true
+        php artisan optimize || true
+
+    - name: Display final deployment summary
+      debug:
+        msg: |
+          ================================
+          DEPLOYMENT SUMMARY
+          ================================
+          Git Status: {{ 'Managed' if git_dir.stat.exists else 'Not a git repository' }}
+          Composer Install: {{ 'SUCCESS' if composer_result.rc == 0 else 'FAILED' }}
+          NPM Build: {{ 'SUCCESS' if npm_build_result is defined and npm_build_result.rc == 0 else 'SKIPPED' }}
+          Tests: {{ 'PASSED' if test_result.rc == 0 else 'FAILED' }}
+          Database Backup: {{ 'SUCCESS' if backup_file.stat.exists else 'FAILED' }}
+          Migration: {{ 'SUCCESS' if migrate_result.rc == 0 else 'FAILED' }}
+          Backup Location: {{ backup_dir }}/{{ mysql_database }}_backup_{{ timestamp }}.sql
+          ================================

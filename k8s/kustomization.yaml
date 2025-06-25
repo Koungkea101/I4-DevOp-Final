@@ -10,6 +10,11 @@ resources:
   - pvc.yaml
   - deployment.yaml
   - service.yaml
+  - loadbalancer-service.yaml
+  - ingress.yaml
+  - hpa.yaml
+  - nginx-loadbalancer.yaml
+  - monitoring.yaml
 
 commonLabels:
   app: laravel

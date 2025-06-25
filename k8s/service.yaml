@@ -23,5 +23,10 @@ spec:
     nodePort: 30306
     name: mysql
     protocol: TCP
+  - port: 80
+    targetPort: 80
+    nodePort: 30180
+    name: phpmyadmin
+    protocol: TCP
   selector:
     app: laravel

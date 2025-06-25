@@ -6,7 +6,7 @@ metadata:
   labels:
     app: laravel
 spec:
-  replicas: 1
+  replicas: 2  # Increased for load balancing
   selector:
     matchLabels:
       app: laravel
@@ -44,6 +44,9 @@ spec:
           mountPath: /var/www/html/storage
         - name: laravel-cache
           mountPath: /var/www/html/bootstrap/cache
+        - name: nginx-config
+          mountPath: /etc/nginx/sites-available/default
+          subPath: default.conf
         resources:
           requests:
             memory: "256Mi"
@@ -115,6 +118,34 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 5
 
+      # phpMyAdmin container
+      - name: phpmyadmin
+        image: phpmyadmin/phpmyadmin:latest
+        ports:
+        - containerPort: 80
+          name: phpmyadmin
+        env:
+        - name: PMA_HOST
+          value: "localhost"
+        - name: PMA_PORT
+          value: "3306"
+        - name: PMA_USER
+          value: "root"
+        - name: PMA_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: laravel-secrets
+              key: DB_PASSWORD
+        - name: PMA_ABSOLUTE_URI
+          value: "http://localhost:8090/phpmyadmin/"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+
       volumes:
       - name: laravel-storage
         emptyDir: {}
@@ -123,5 +154,8 @@ spec:
       - name: mysql-data
         persistentVolumeClaim:
           claimName: mysql-pvc
+      - name: nginx-config
+        configMap:
+          name: nginx-webserver-config
 
       restartPolicy: Always

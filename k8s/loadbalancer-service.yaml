@@ -1,0 +1,59 @@
+# Load Balancer Service for Laravel Application
+apiVersion: v1
+kind: Service
+metadata:
+  name: laravel-loadbalancer
+  namespace: laravel-app
+  labels:
+    app: laravel
+    service-type: loadbalancer
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 127.0.0.1  # localhost IP
+  ports:
+  # Website access on port 8090
+  - port: 8090
+    targetPort: 8080
+    name: http-web
+    protocol: TCP
+  # Database access on port 3306
+  - port: 3306
+    targetPort: 3306
+    name: mysql-db
+    protocol: TCP
+  # SSH access on port 22
+  - port: 22
+    targetPort: 22
+    name: ssh
+    protocol: TCP
+  selector:
+    app: laravel
+  # External traffic policy to preserve source IP
+  externalTrafficPolicy: Local
+---
+# ClusterIP service for internal communication
+apiVersion: v1
+kind: Service
+metadata:
+  name: laravel-internal
+  namespace: laravel-app
+  labels:
+    app: laravel
+    service-type: internal
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+    protocol: TCP
+  - port: 3306
+    targetPort: 3306
+    name: mysql
+    protocol: TCP
+  - port: 22
+    targetPort: 22
+    name: ssh
+    protocol: TCP
+  selector:
+    app: laravel

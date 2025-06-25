@@ -19,6 +19,33 @@ Laravel is a web application framework with expressive, elegant syntax. We belie
 - [Robust background job processing](https://laravel.com/docs/queues).
 - [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
 
+## 🚀 DevOps & Deployment
+
+This Laravel project includes comprehensive DevOps automation:
+
+### 🐳 Kubernetes Deployment
+Deploy the Laravel application with MySQL in Kubernetes:
+```bash
+./k8s/deploy.sh
+```
+See `k8s/README.md` for detailed Kubernetes deployment instructions.
+
+### 🎭 Ansible Automation
+Automate deployment, testing, and database backup using Ansible:
+```bash
+cd ansible
+./run-ansible-deployment.sh
+```
+See `ansible/README.md` for Ansible automation documentation.
+
+### 📋 Features
+- **Containerized Environment**: Docker & Kubernetes ready
+- **Automated Deployment**: One-click deployment with Ansible
+- **Database Management**: Automated MySQL backups and migrations  
+- **Testing Pipeline**: Automated testing with SQLite
+- **Asset Building**: Automated Composer and NPM builds
+- **Production Optimization**: Automated caching and optimization
+
 Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
 ## Learning Laravel

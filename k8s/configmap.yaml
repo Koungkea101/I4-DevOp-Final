@@ -7,7 +7,7 @@ data:
   APP_NAME: "Laravel"
   APP_ENV: "production"
   APP_DEBUG: "false"
-  APP_URL: "http://localhost:8080"
+  APP_URL: "http://localhost:8090"
   APP_LOCALE: "en"
   APP_FALLBACK_LOCALE: "en"
   APP_FAKER_LOCALE: "en_US"
@@ -25,3 +25,9 @@ data:
   QUEUE_CONNECTION: "database"
   MAIL_MAILER: "log"
   VITE_APP_NAME: "Laravel"
+  # Asset and URL configuration for load balancer
+  ASSET_URL: "http://localhost:8090"
+  MIX_APP_URL: "http://localhost:8090"
+  # Trust proxies for load balancer
+  TRUSTED_PROXIES: "*"
+  TRUSTED_HOSTS: "localhost"

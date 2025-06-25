@@ -1,0 +1,72 @@
+# ServiceMonitor for Prometheus monitoring of the load balancer
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: laravel-loadbalancer-monitor
+  namespace: laravel-app
+  labels:
+    app: laravel
+    monitoring: enabled
+spec:
+  selector:
+    matchLabels:
+      app: nginx-lb
+  endpoints:
+  - port: http
+    path: /nginx_status
+    interval: 30s
+---
+# Service for monitoring metrics
+apiVersion: v1
+kind: Service
+metadata:
+  name: laravel-metrics
+  namespace: laravel-app
+  labels:
+    app: laravel
+    monitoring: enabled
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9113
+    targetPort: 9113
+    name: metrics
+    protocol: TCP
+  selector:
+    app: laravel
+---
+# Network Policy for Load Balancer Security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: laravel-loadbalancer-netpol
+  namespace: laravel-app
+  labels:
+    app: laravel
+spec:
+  podSelector:
+    matchLabels:
+      app: nginx-lb
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow traffic from anywhere to the load balancer
+  - from: []
+    ports:
+    - protocol: TCP
+      port: 8090
+  egress:
+  # Allow communication to Laravel pods
+  - to:
+    - podSelector:
+        matchLabels:
+          app: laravel
+    ports:
+    - protocol: TCP
+      port: 8080
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
