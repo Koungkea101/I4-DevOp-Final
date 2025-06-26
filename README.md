@@ -19,32 +19,38 @@ Laravel is a web application framework with expressive, elegant syntax. We belie
 - [Robust background job processing](https://laravel.com/docs/queues).
 - [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
 
-## 🚀 DevOps & Deployment
+## 🚀 Kubernetes Deployment
 
-This Laravel project includes comprehensive DevOps automation:
-
-### 🐳 Kubernetes Deployment
-Deploy the Laravel application with MySQL in Kubernetes:
+### 1. Start Minikube
 ```bash
-./k8s/deploy.sh
+minikube start
 ```
-See `k8s/README.md` for detailed Kubernetes deployment instructions.
 
-### 🎭 Ansible Automation
-Automate deployment, testing, and database backup using Ansible:
+### 2. Apply Configurations
 ```bash
-cd ansible
-./run-ansible-deployment.sh
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/secrets.yaml
+kubectl apply -f k8s/configmap.yaml
+kubectl apply -f k8s/pvc.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+kubectl apply -f k8s/loadbalancer-service.yaml
+kubectl apply -f k8s/nginx-loadbalancer.yaml
 ```
-See `ansible/README.md` for Ansible automation documentation.
 
-### 📋 Features
-- **Containerized Environment**: Docker & Kubernetes ready
-- **Automated Deployment**: One-click deployment with Ansible
-- **Database Management**: Automated MySQL backups and migrations  
-- **Testing Pipeline**: Automated testing with SQLite
-- **Asset Building**: Automated Composer and NPM builds
-- **Production Optimization**: Automated caching and optimization
+### 3. Start Tunnel
+```bash
+minikube tunnel
+```
+(Keep this running in a separate terminal)
+
+## 🌐 Access URLs
+
+Once everything is running:
+
+- **Laravel Application**: http://localhost:8090/
+- **phpMyAdmin**: http://localhost:8090/phpmyadmin/
+- **Health Check**: http://localhost:8090/health
 
 Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
