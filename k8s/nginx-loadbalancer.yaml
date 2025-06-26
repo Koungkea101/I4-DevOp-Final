@@ -11,7 +11,10 @@ data:
     upstream laravel_backend {
         least_conn;
         server laravel-internal:8080 max_fails=3 fail_timeout=30s;
-        server laravel-internal:8080 max_fails=3 fail_timeout=30s;
+    }
+
+    upstream phpmyadmin_backend {
+        server phpmyadmin-internal:80 max_fails=3 fail_timeout=30s;
     }
 
     server {
@@ -54,9 +57,14 @@ data:
             proxy_read_timeout 10s;
         }
 
+        # phpMyAdmin routes - redirect without trailing slash
+        location = /phpmyadmin {
+            return 301 /phpmyadmin/;
+        }
+
         # phpMyAdmin routes
-        location /phpmyadmin {
-            proxy_pass http://laravel_backend;
+        location /phpmyadmin/ {
+            proxy_pass http://phpmyadmin_backend/;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -67,12 +75,12 @@ data:
 
             # Important for phpMyAdmin session handling
             proxy_set_header Cookie $http_cookie;
-            
+
             # Increase timeouts for phpMyAdmin operations
             proxy_connect_timeout 60s;
             proxy_send_timeout 60s;
             proxy_read_timeout 60s;
-            
+
             # Buffer settings
             proxy_buffering on;
             proxy_buffer_size 8k;
